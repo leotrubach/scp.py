@@ -84,7 +84,7 @@ class SCPClient(object):
     (matching scp behaviour), but we make no attempt at symlinked directories.
     """
     def __init__(self, transport, buff_size=16384, socket_timeout=5.0,
-                 progress=None, sanitize=_sh_quote):
+                 progress=None, sanitize=_sh_quote, load_profile=False):
         """
         Create an scp1 client.
 
@@ -105,6 +105,8 @@ class SCPClient(object):
         self.socket_timeout = socket_timeout
         self.channel = None
         self.preserve_times = False
+        self.load_profile = load_profile
+        self.command_prefix = b'source /etc/profile;' if self.load_profile else ''
         self._progress = progress
         self._recv_dir = b''
         self._rename = False
@@ -140,7 +142,8 @@ class SCPClient(object):
         self.channel = self._open()
         self._pushed = 0
         self.channel.settimeout(self.socket_timeout)
-        scp_command = (b'scp -t ', b'scp -r -t ')[recursive]
+        command = b'scp -r -t ' if recursive else b'scp -t '
+        scp_command = self.command_prefix + command
         self.channel.exec_command(scp_command +
                                   self.sanitize(asbytes(remote_path)))
         self._recv_confirm()
@@ -190,7 +193,7 @@ class SCPClient(object):
         self.channel = self._open()
         self._pushed = 0
         self.channel.settimeout(self.socket_timeout)
-        self.channel.exec_command(b"scp" +
+        self.channel.exec_command(self.command_prefix + b"scp" +
                                   rcsv +
                                   prsv +
                                   b" -f " +
